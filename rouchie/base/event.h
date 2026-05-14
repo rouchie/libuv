@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <memory>
 #include <functional>
@@ -14,18 +14,20 @@ public:
     static std::shared_ptr<Event> Create();
     ~Event();
 
-    void Start() const;
-    void DoExecute();
+    void Start();
+    void Stop();
 
     void Execute(const Task& task);
     void FirstExecute(const Task& task);
 
 private:
     Event();
+
     void Init();
+    void HandleTasks();
 
 private:
-    uv_loop_t* _loop =  nullptr;
+    std::shared_ptr<uv_loop_t> _loop;
     uv_async_t _async;
 
     std::mutex _mutex;

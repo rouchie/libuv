@@ -10,6 +10,8 @@ set(SRC_LIST
     base/task.cpp
 )
 
+find_package(spdlog REQUIRED)
+
 add_executable(app app/main.cpp ${SRC_LIST})
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(app PRIVATE libuv::libuv)
+target_link_libraries(app PRIVATE libuv::libuv spdlog::spdlog)

@@ -37,6 +37,8 @@ public:
     void FirstExecute(const Task& task) override;
 
 private:
-    std::shared_ptr<std::thread> _mainThread;
+    std::shared_ptr<std::thread> _loopThread;
+    std::thread::id _loopThreadID;
+
     std::shared_ptr<Event> _event;
 };
