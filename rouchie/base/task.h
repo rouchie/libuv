@@ -1,8 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include <thread>
+#include <memory>
 
-#include "event.h"
+#include "task_scheduler.h"
 
 class TaskExecutorInterface {
 public:
@@ -40,5 +41,6 @@ private:
     std::shared_ptr<std::thread> _loopThread;
     std::thread::id _loopThreadID;
 
-    std::shared_ptr<Event> _event;
+    // 使用策略模式，依赖抽象而非具体实现
+    TaskScheduler::Ptr _scheduler;
 };

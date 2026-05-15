@@ -1,6 +1,7 @@
-﻿#include <iostream>
+#include <iostream>
 
 #include "task.h"
+#include "uv_scheduler.h"
 
 #include <spdlog/spdlog.h>
 
@@ -31,19 +32,20 @@ std::shared_ptr<TaskExecutor> TaskExecutorImp::Create() {
 }
 
 TaskExecutorImp::TaskExecutorImp() {
-    _event = Event::Create();
+    // 使用策略模式，创建具体的调度器实现
+    _scheduler = UvScheduler::Create();
     SPDLOG_INFO("TaskExecutorImp");
 }
 
 TaskExecutorImp::~TaskExecutorImp() {
     const std::thread::id id = std::this_thread::get_id();
     if (id == _loopThreadID) {
-        _event->Stop();
+        _scheduler->Stop();
         _loopThread->detach();
     } else {
         Semaphore sem;
-        _event->FirstExecute([this, &sem]() {
-            _event->Stop();
+        _scheduler->PostHighPriority([this, &sem]() {
+            _scheduler->Stop();
             sem.Post();
         });
         sem.Wait();
@@ -53,20 +55,20 @@ TaskExecutorImp::~TaskExecutorImp() {
 }
 
 void TaskExecutorImp::Execute(const Task &task) {
-    _event->Execute(task);
+    _scheduler->Post(task);
 }
 
 void TaskExecutorImp::FirstExecute(const Task &task) {
-    _event->FirstExecute(task);
+    _scheduler->PostHighPriority(task);
 }
 
 void TaskExecutorImp::Start() {
     Semaphore sem;
-    auto event = _event;
-    _loopThread = std::make_shared<std::thread>([&, event]() {
+    auto scheduler = _scheduler;
+    _loopThread = std::make_shared<std::thread>([&, scheduler]() {
         _loopThreadID = std::this_thread::get_id();
         sem.Post();
-        _event->Start();
+        _scheduler->Start();
     });
     sem.Wait();
 }

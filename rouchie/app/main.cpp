@@ -1,41 +1,63 @@
 #include <iostream>
 #include <sstream>
+#include <thread>
+#include <vector>
 
 #include "uv.h"
 #include "base/task.h"
 #include "base/sem.h"
+#include "base/task_scheduler.h"
+#include "base/uv_scheduler.h"
+#include "base/task_pool.h"
 
 #include "spdlog/spdlog.h"
 
 int main() {
-    for (int i= 0; i < 10; ++i) {
-        auto executor = TaskExecutorImp::Create();
-
-        new std::thread([executor]() mutable {
-            for (int i = 0; i < 10; ++i) {
-                executor->Execute([i, executor]() mutable {
-                    // uv_sleep(1000);
-                    auto id = std::this_thread::get_id();
-                    executor.reset();
-                    std::stringstream oss;
-                    oss << id;
-                    SPDLOG_INFO("task: {} : {}", i, oss.str());
-                });
-                executor->FirstExecute([i]() {
-                    SPDLOG_INFO("first task: {}", i);
-                });
-                uv_sleep(100);
-            }
+    SPDLOG_INFO("=== TaskPool Example ===");
+    
+    // 创建任务池，最小2个executor，最大8个executor
+    auto taskPool = TaskPool::Create(2, 8);
+    
+    SPDLOG_INFO("TaskPool created with active size: {}", taskPool->GetActiveSize());
+    
+    // 提交多个任务到任务池
+    for (int i = 0; i < 20; ++i) {
+        taskPool->Execute([i]() {
+            const auto id = std::this_thread::get_id();
+            std::stringstream oss;
+            oss << id;
+            SPDLOG_INFO("Task {} executed on thread: {}", i, oss.str());
+            uv_sleep(100); // 模拟任务执行时间
         });
-
-        executor.reset();
-        // t.join();
+        
+        // 每隔5个任务提交一个高优先级任务
+        if (i % 5 == 0) {
+            taskPool->FirstExecute([i]() {
+                SPDLOG_INFO("High priority task {} executed", i);
+            });
+        }
     }
-
-    static Semaphore sem;
-    signal(SIGINT, [](int) { sem.Post(); }); // 设置退出信号
-    sem.Wait();
-
+    
+    SPDLOG_INFO("Submitted {} tasks to pool", taskPool->GetTotalSubmittedTasks());
+    
+    // 等待一段时间让任务执行
+    uv_sleep(3000);
+    
+    SPDLOG_INFO("TaskPool stats - Active executors: {}, Total submitted: {}", 
+                taskPool->GetActiveSize(), 
+                taskPool->GetTotalSubmittedTasks());
+    
+    // 同步执行示例
+    SPDLOG_INFO("Executing sync task...");
+    taskPool->Sync([]() {
+        SPDLOG_INFO("Sync task executed");
+        uv_sleep(500);
+    });
+    SPDLOG_INFO("Sync task completed");
+    
+    // 停止任务池
+    taskPool->Stop();
+    
     SPDLOG_INFO("done");
 
     return 0;
