@@ -34,7 +34,7 @@ public:
      * 提交高优先级任务（优先执行）
      */
     virtual void PostHighPriority(Task task) = 0;
-    
+
 protected:
     TaskScheduler() = default;
 };

@@ -1,7 +1,11 @@
 #include <iostream>
+#include <utility>
 
 #include "task.h"
-#include "uv_scheduler.h"
+
+#include <ppltasks.h>
+
+#include "uvscheduler.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,15 +30,16 @@ void TaskExecutorInterface::FirstSync(const Task& task) {
 }
 
 std::shared_ptr<TaskExecutor> TaskExecutorImp::Create() {
-    std::shared_ptr<TaskExecutorImp> executor(new TaskExecutorImp());
+    const auto scheduler = UvScheduler::Create();
+    std::shared_ptr<TaskExecutorImp> executor(new TaskExecutorImp(scheduler));
     executor->Start();
     return executor;
 }
 
-TaskExecutorImp::TaskExecutorImp() {
+TaskExecutorImp::TaskExecutorImp(TaskScheduler::Ptr scheduler) {
     // 使用策略模式，创建具体的调度器实现
-    _scheduler = UvScheduler::Create();
-    SPDLOG_INFO("TaskExecutorImp");
+    _scheduler = std::move(scheduler);
+    SPDLOG_TRACE("TaskExecutorImp");
 }
 
 TaskExecutorImp::~TaskExecutorImp() {
@@ -51,7 +56,7 @@ TaskExecutorImp::~TaskExecutorImp() {
         sem.Wait();
         _loopThread->join();
     }
-    SPDLOG_INFO("~TaskExecutorImp");
+    SPDLOG_TRACE("~TaskExecutorImp");
 }
 
 void TaskExecutorImp::Execute(const Task &task) {
@@ -72,3 +77,18 @@ void TaskExecutorImp::Start() {
     });
     sem.Wait();
 }
+
+std::shared_ptr<EventPoller> EventPoller::Create() {
+    const auto scheduler = UvScheduler::Create();
+    std::shared_ptr<EventPoller> executor(new EventPoller(scheduler, scheduler));
+    executor->Start();
+    return executor;
+}
+
+NET::Ptr EventPoller::TcpStart(int port, const std::string &host, int backlog) const {
+    return _netScheduler->TcpStart(host, port, backlog);
+}
+
+EventPoller::EventPoller(TaskScheduler::Ptr taskScheduler, NetScheduler::Ptr netScheduler) : TaskExecutorImp(std::move(taskScheduler)), _netScheduler(std::move(netScheduler)) {
+}
+

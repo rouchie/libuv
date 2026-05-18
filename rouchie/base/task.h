@@ -3,7 +3,8 @@
 #include <thread>
 #include <memory>
 
-#include "task_scheduler.h"
+#include "taskscheduler.h"
+#include "netscheduler.h"
 
 class TaskExecutorInterface {
 public:
@@ -20,6 +21,7 @@ public:
 // 中间接口，可以添加其他功能，比如负载统计
 class TaskExecutor : public TaskExecutorInterface {
 public:
+    using Ptr = std::shared_ptr<TaskExecutor>;
     TaskExecutor() = default;
     ~TaskExecutor() override = default;
 };
@@ -30,17 +32,35 @@ public:
     ~TaskExecutorImp() override;
 
 protected:
-    TaskExecutorImp();
+    explicit TaskExecutorImp(TaskScheduler::Ptr scheduler);
     void Start();
 
 public:
     void Execute(const Task& task) override;
     void FirstExecute(const Task& task) override;
 
-private:
+protected:
     std::shared_ptr<std::thread> _loopThread;
     std::thread::id _loopThreadID;
 
     // 使用策略模式，依赖抽象而非具体实现
     TaskScheduler::Ptr _scheduler;
+};
+
+class EventPoller : public TaskExecutorImp {
+public:
+    using Ptr = std::shared_ptr<EventPoller>;
+
+    static std::shared_ptr<EventPoller> Create();
+
+    ~EventPoller() override = default;
+
+public:
+    NET::Ptr TcpStart(int port, const std::string &host, int backlog) const;
+
+protected:
+    EventPoller(TaskScheduler::Ptr taskScheduler, NetScheduler::Ptr netScheduler);
+
+private:
+    NetScheduler::Ptr _netScheduler;
 };

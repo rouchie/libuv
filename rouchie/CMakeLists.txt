@@ -2,14 +2,16 @@ cmake_minimum_required(VERSION 3.10)
 
 project(app)
 
+set(LIBUV_BUILD_TESTS ON CACHE BOOL "Build libuv tests")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. libuv_build)
 
 set(SRC_LIST
     base/sem.cpp
     base/event.cpp
-    base/uv_scheduler.cpp
+    base/uvscheduler.cpp
     base/task.cpp
-    base/task_pool.cpp
+    base/taskpool.cpp
+    base/tcpserver.cpp
 )
 
 find_package(spdlog REQUIRED)
