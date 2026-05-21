@@ -7,11 +7,12 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. libuv_build)
 
 set(SRC_LIST
     base/sem.cpp
-    base/event.cpp
-    base/uvscheduler.cpp
-    base/task.cpp
-    base/taskpool.cpp
-    base/tcpserver.cpp
+    poller/asynccontext.cpp
+    poller/asynccontext.h
+    poller/loopcontext.cpp
+    poller/loopcontext.h
+    poller/eventpoller.cpp
+    poller/eventpoller.h
 )
 
 find_package(spdlog REQUIRED)

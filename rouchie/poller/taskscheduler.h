@@ -3,6 +3,8 @@
 #include <memory>
 #include <functional>
 
+#include "base/sem.h"
+
 using Task = std::function<void()>;
 
 class TaskScheduler {
@@ -18,3 +20,21 @@ public:
     void Sync(const Task &task);
     void FirstSync(const Task& task);
 };
+
+inline void TaskScheduler::Sync(const Task &task) {
+    Semaphore sem;
+    Async([&]() {
+        task();
+        sem.Post();
+    });
+    sem.Wait();
+}
+
+inline void TaskScheduler::FirstSync(const Task &task) {
+    Semaphore sem;
+    FirstAsync([&]() {
+        task();
+        sem.Post();
+    });
+    sem.Wait();
+}
