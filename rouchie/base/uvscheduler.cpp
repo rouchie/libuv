@@ -52,7 +52,7 @@ NET::Ptr UvScheduler::TcpStart(const std::string &host, int port, int backlog) {
     auto createServer = [this, host, port, backlog](sockaddr *addr, const std::string& ipVersion) -> TcpServerInfo::Ptr {
         const auto server = std::make_shared<uv_tcp_t>();
 
-        auto* context = new NetContext;
+        auto* context = new TcpServerContext;
         context->context = server;
         context->data = this;
 
@@ -67,7 +67,7 @@ NET::Ptr UvScheduler::TcpStart(const std::string &host, int port, int backlog) {
         }
 
         nRet = uv_listen(reinterpret_cast<uv_stream_t *>(server.get()), backlog, [](uv_stream_t *server, int status) {
-            auto *context = static_cast<NetContext *>(server->data);
+            auto *context = static_cast<TcpServerContext *>(server->data);
             auto *thiz = static_cast<UvScheduler *>(context->data);
             thiz->TcpAccept(server, status);
         });
@@ -116,7 +116,7 @@ NET::Ptr UvScheduler::TcpStart(const std::string &host, int port, int backlog) {
 void UvScheduler::TcpAccept(uv_stream_t *server, int status) {
     const auto session = std::make_shared<uv_tcp_t>();
 
-    auto* context = new NetContext;
+    auto* context = new TcpServerContext;
     context->context = session;
     context->data = this;
 
@@ -128,13 +128,13 @@ void UvScheduler::TcpAccept(uv_stream_t *server, int status) {
     uv_accept(server, reinterpret_cast<uv_stream_t *>(session.get()));
 
     auto alloc = [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-        auto *context = static_cast<NetContext *>(handle->data);
+        auto *context = static_cast<TcpServerContext *>(handle->data);
         auto *thiz = static_cast<UvScheduler *>(context->data);
         thiz->TcpAlloc(handle, suggested_size, buf);
     };
 
     auto read = [](uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
-        auto *context = static_cast<NetContext *>(stream->data);
+        auto *context = static_cast<TcpServerContext *>(stream->data);
         auto *thiz = static_cast<UvScheduler *>(context->data);
         thiz->TcpRead(stream, nread, buf);
     };

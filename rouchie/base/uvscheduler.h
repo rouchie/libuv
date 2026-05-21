@@ -12,9 +12,9 @@
 #include "taskscheduler.h"
 #include "netscheduler.h"
 
-class NetContext {
+class TcpServerContext {
 public:
-    using Ptr = std::shared_ptr<NetContext>;
+    using Ptr = std::shared_ptr<TcpServerContext>;
 
     std::shared_ptr<uv_tcp_t> context;
     void* data;
@@ -27,13 +27,13 @@ public:
         const auto s = session.lock();
         if (s) {
             uv_close(reinterpret_cast<uv_handle_t *>(s.get()), [](uv_handle_t* handle) {
-                delete static_cast<NetContext*>(handle->data);
+                delete static_cast<TcpServerContext*>(handle->data);
             });
         }
     }
 
     std::weak_ptr<uv_tcp_t> session;
-    NetContext* context;
+    TcpServerContext* context;
 
     std::vector<char> _data;
 };
@@ -46,7 +46,7 @@ public:
         const auto s = server.lock();
         if (s) {
             uv_close(reinterpret_cast<uv_handle_t *>(s.get()), [](uv_handle_t* handle) {
-                delete static_cast<NetContext*>(handle->data);
+                delete static_cast<TcpServerContext*>(handle->data);
             });
         }
     }
@@ -55,7 +55,7 @@ public:
     int port;
 
     std::weak_ptr<uv_tcp_t> server;
-    NetContext* context;
+    TcpServerContext* context;
 
     std::unordered_set<TcpSessionInfo::Ptr> sessions;
 };

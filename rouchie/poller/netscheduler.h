@@ -18,5 +18,5 @@ public:
     NetScheduler() = default;
     virtual ~NetScheduler() = default;
 
-    virtual NET::Ptr TcpStart(const std::string &host, int port, int backlog) = 0;
+    virtual NET::Ptr TcpServer(int port, const std::string &ip = "0.0.0.0", int backlog = 1024) = 0;
 };
