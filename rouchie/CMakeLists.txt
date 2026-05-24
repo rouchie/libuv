@@ -13,10 +13,14 @@ set(SRC_LIST
     poller/loopcontext.h
     poller/eventpoller.cpp
     poller/eventpoller.h
+    poller/tcpserver.cpp
+    poller/tcpserver.h
+    poller/timerimp.cpp
+    poller/timerimp.h
 )
 
 find_package(spdlog REQUIRED)
 
 add_executable(app app/main.cpp ${SRC_LIST})
-target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(app PRIVATE libuv::libuv spdlog::spdlog)

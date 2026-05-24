@@ -13,5 +13,5 @@ public:
     bool TryWait();
 
 private:
-    uv_sem_t _sem;
+    uv_sem_t _sem{};
 };

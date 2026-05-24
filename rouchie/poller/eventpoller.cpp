@@ -1,8 +1,8 @@
 #include "eventpoller.h"
+#include "tcpserver.h"
+#include "timerimp.h"
 
-#include <spdlog/spdlog.h>
-
-#include <utility>
+#include "spdlog/spdlog.h"
 
 EventPoller::Ptr EventPoller::Create() {
     const auto loop = std::make_shared<LoopContext>();
@@ -10,8 +10,7 @@ EventPoller::Ptr EventPoller::Create() {
 
     loop->Start();
 
-    const auto pollerName = fmt::format("{}", fmt::ptr(loop->Handle()));
-    const auto poller = std::shared_ptr<EventPoller>(new EventPoller(pollerName));
+    const auto poller = std::shared_ptr<EventPoller>(new EventPoller(loop->Name()));
 
     poller->_loop = loop;
     poller->_async = async;
@@ -35,7 +34,7 @@ EventPoller::~EventPoller() {
     SPDLOG_INFO("~EventPoller: {}", _pollerName);
 }
 
-void EventPoller::Async(const Task& task) {
+void EventPoller::Async(const Task &task) {
     _async->Async(task);
 }
 
@@ -43,8 +42,28 @@ void EventPoller::FirstAsync(const Task &task) {
     _async->FirstAsync(task);
 }
 
-NET::Ptr EventPoller::TcpServer(int port, const std::string &ip, int backlog) {
-    return std::make_shared<NET>();
+void EventPoller::Sync(const Task &task) {
+    if (_loop->IsLoopThread()) {
+        task();
+    } else {
+        TaskScheduler::Sync(task);
+    }
+}
+
+void EventPoller::FirstSync(const Task &task) {
+    if (_loop->IsLoopThread()) {
+        task();
+    } else {
+        TaskScheduler::FirstSync(task);
+    }
+}
+
+NET::Ptr EventPoller::TcpServer(int port, const std::string &ip, int backlog, CreateSessionFunc func) {
+    return UVTcpServer::Create(shared_from_this(), _loop, port, ip, backlog, func);
+}
+
+Timer::Ptr EventPoller::Timer(uint64_t timeout, uint64_t repeat, const TimerTask &task) {
+    return std::make_shared<UVTimer>(shared_from_this(), _loop, timeout, repeat, task);
 }
 
 EventPoller::EventPoller(std::string pollerName) : _pollerName(std::move(pollerName)) {

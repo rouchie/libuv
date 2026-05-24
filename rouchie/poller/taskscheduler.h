@@ -17,8 +17,8 @@ public:
     virtual void Async(const Task& task) = 0;
     virtual void FirstAsync(const Task& task) = 0;
 
-    void Sync(const Task &task);
-    void FirstSync(const Task& task);
+    virtual void Sync(const Task &task);
+    virtual void FirstSync(const Task& task);
 };
 
 inline void TaskScheduler::Sync(const Task &task) {

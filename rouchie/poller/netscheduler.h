@@ -2,21 +2,23 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 class NET {
 public:
     using Ptr = std::shared_ptr<NET>;
 
-    NET() = default;
+    NET(std::string ip, const int port, const int backlog) : _ip(std::move(ip)), _port(port), _backlog(backlog) {}
     virtual ~NET() = default;
-};
 
-class NetScheduler {
-public:
-    using Ptr = std::shared_ptr<NetScheduler>;
+    std::string Ip() const { return _ip; }
+    int Port() const { return _port; }
 
-    NetScheduler() = default;
-    virtual ~NetScheduler() = default;
+    virtual bool Live() const = 0;
+    virtual std::string Error() const = 0;
 
-    virtual NET::Ptr TcpServer(int port, const std::string &ip = "0.0.0.0", int backlog = 1024) = 0;
+protected:
+    std::string _ip;
+    int _port = 0;
+    int _backlog = 128;
 };
