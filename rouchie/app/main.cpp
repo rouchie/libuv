@@ -1,5 +1,6 @@
 #include "base/defer.h"
 #include "base/sem.h"
+#include "buffer/vectorbuffer.h"
 #include "net/createserver.h"
 #include "poller/eventpoller.h"
 #include "spdlog/spdlog.h"
@@ -8,9 +9,15 @@ class RtspSession : public BaseSession {
 public:
     using Ptr = std::shared_ptr<RtspSession>;
 
-    explicit RtspSession(EventPoller::Ptr poller) : _poller(std::move(poller)) {
-        _tHeartbeat = _poller->Timer(1000, 2000, []() {
+    explicit RtspSession(EventPoller::Ptr poller, BaseSessionWrite::Ptr write) : BaseSession(std::move(write)), _poller(std::move(poller)) {
+        _tHeartbeat = _poller->Timer(1000, 2000, [this]() {
+            static int i = 0;
+            Write(std::make_shared<VectorBuffer>("heartbeat..."));
             SPDLOG_INFO("RtspSession timer");
+            if (i++ > 5) {
+                i = 0;
+                return false;
+            }
             return true;
         });
         SPDLOG_INFO("RtspSession");

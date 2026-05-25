@@ -9,7 +9,7 @@
 class EventPoller : public TaskScheduler, public std::enable_shared_from_this<EventPoller> {
 public:
     using Ptr = std::shared_ptr<EventPoller>;
-    using CreateSessionFunc = std::function<BaseSession::Ptr(Ptr poller)>;
+    using CreateSessionFunc = std::function<BaseSession::Ptr(Ptr poller, BaseSessionWrite::Ptr write)>;
 
     static Ptr Create();
     ~EventPoller() override;

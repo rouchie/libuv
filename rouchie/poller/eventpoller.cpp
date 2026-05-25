@@ -24,13 +24,8 @@ EventPoller::~EventPoller() {
         _loop->Stop();
     };
 
-    if (!_loop->IsLoopThread()) {
-        // 异步删除
-        Sync(f);
-    } else {
-        // 同步删除
-        f();
-    }
+    FirstSync(f);
+
     SPDLOG_INFO("~EventPoller: {}", _pollerName);
 }
 

@@ -12,12 +12,14 @@
 class TcpSessionContext : public BaseContext {
 public:
     static uv_tcp_t *Create(BaseSession::Ptr session);
+    static void SetSession(const uv_tcp_t *handle, BaseSession::Ptr session);
 
     uv_tcp_t *Handle() const;
 
     void Alloc(size_t suggested_size, uv_buf_t *buf);
+    void Read(ssize_t nread, const uv_buf_t *buf);
 
-    void Read(ssize_t nread, const uv_buf_t *buf) const;
+    void Close();
 
 protected:
     explicit TcpSessionContext(BaseSession::Ptr session);
@@ -31,6 +33,10 @@ private:
 uv_tcp_t *TcpSessionContext::Create(BaseSession::Ptr session) {
     const auto context = new TcpSessionContext(std::move(session));
     return context->Handle();
+}
+
+void TcpSessionContext::SetSession(const uv_tcp_t *handle, BaseSession::Ptr session) {
+    static_cast<TcpSessionContext *>(handle->data)->_session = std::move(session);
 }
 
 TcpSessionContext::TcpSessionContext(BaseSession::Ptr session) : _session(std::move(session)) {
@@ -50,14 +56,14 @@ void TcpSessionContext::Alloc(const size_t suggested_size, uv_buf_t *buf) {
     buf->len = static_cast<ULONG>(_data.size());
 }
 
-void TcpSessionContext::Read(const ssize_t nread, const uv_buf_t *buf) const {
+void TcpSessionContext::Read(const ssize_t nread, const uv_buf_t *buf) {
     if (nread < 0) {
         if (nread == UV_EOF) {
             _session->OnError(Exception("eof", CODE_EOF, static_cast<int>(nread)));
         } else {
             _session->OnError(Exception("tcp read error", CODE_EXCEPTION, static_cast<int>(nread)));
         }
-        uv_close(reinterpret_cast<uv_handle_t *>(_handle.get()), CloseCallback);
+        Close();
         return;
     }
 
@@ -65,9 +71,31 @@ void TcpSessionContext::Read(const ssize_t nread, const uv_buf_t *buf) const {
         _session->OnRead(std::make_shared<VectorBuffer>(buf->base, nread));
     } catch (const Exception &e) {
         _session->OnError(e);
-        uv_close(reinterpret_cast<uv_handle_t *>(_handle.get()), CloseCallback);
+        Close();
     }
 }
+
+void TcpSessionContext::Close() {
+    _session.reset();
+    uv_close(reinterpret_cast<uv_handle_t *>(_handle.get()), CloseCallback);
+}
+
+class BaseSessionWriteImp : public BaseSessionWrite {
+public:
+    explicit BaseSessionWriteImp(uv_stream_t *handle) : _handle(handle) {
+    }
+
+    void Write(const Buffer::Ptr &buffer) override {
+        auto *req = new uv_write_t();
+        const uv_buf_t buf = uv_buf_init(const_cast<char *>(buffer->Data()), buffer->Size());
+        uv_write(req, _handle, &buf, 1, [](uv_write_t *req, int status) {
+            delete req;
+        });
+    }
+
+private:
+    uv_stream_t *_handle;
+};
 
 class TcpServerContext : public BaseContext {
 public:
@@ -77,7 +105,7 @@ public:
 
     uv_tcp_t *Handle() const;
 
-    BaseSession::Ptr CreateSession() const;
+    BaseSession::Ptr CreateSession(BaseSessionWrite::Ptr write) const;
 
 protected:
     TcpServerContext(EventPoller::Ptr poller, LoopContext::Ptr loop, EventPoller::CreateSessionFunc func);
@@ -102,8 +130,8 @@ uv_tcp_t *TcpServerContext::Handle() const {
     return _context.get();
 }
 
-BaseSession::Ptr TcpServerContext::CreateSession() const {
-    return _createSessionFunc(_poller);
+BaseSession::Ptr TcpServerContext::CreateSession(BaseSessionWrite::Ptr write) const {
+    return _createSessionFunc(_poller, std::move(write));
 }
 
 TcpServerContext::TcpServerContext(EventPoller::Ptr poller, LoopContext::Ptr loop, EventPoller::CreateSessionFunc func) : _poller(std::move(poller)), _loop(std::move(loop)),
@@ -131,7 +159,7 @@ static void tcpConnection(uv_stream_t *server, int status) {
     const auto *serverContext = static_cast<TcpServerContext *>(server->data);
     auto *loop = serverContext->Loop();
 
-    auto *handle = TcpSessionContext::Create(serverContext->CreateSession());
+    auto *handle = TcpSessionContext::Create(nullptr);
 
     int nRet = uv_tcp_init(loop, handle);
     if (0 != nRet) {
@@ -155,6 +183,8 @@ static void tcpConnection(uv_stream_t *server, int status) {
         error(nRet, "tcp read start failed", handle);
         return;
     }
+
+    TcpSessionContext::SetSession(handle, serverContext->CreateSession(std::make_shared<BaseSessionWriteImp>(reinterpret_cast<uv_stream_t *>(handle))));
 }
 
 static void tcpListen_l(uv_loop_t *loop, uv_tcp_t *handle, const struct sockaddr *addr, int backlog) {

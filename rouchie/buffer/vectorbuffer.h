@@ -7,6 +7,7 @@
 class VectorBuffer : public Buffer {
 public:
     VectorBuffer(const char *data, size_t size);
+    explicit VectorBuffer(const std::string &data) : VectorBuffer(data.data(), data.size()) {}
 
     char *Data() override;
     const char *Data() const override;
